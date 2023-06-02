@@ -16,14 +16,15 @@ const Customers = () => {
     const [modalTitle, setModalTitle] = useState("");
 
     // Id whicch is the primary key of the category
-    const [Id, setId] = useState<number>(0);
+    const [Id, setId] = useState<string>("0");
 
     // form datas to be used in the category
     const [formData, setformData] = useState({
-        Id: 0,
+        Id: "0",
         Email: "",
         FirstName: "",
         LastName: "",
+        Roles: [],
     });
 
     // List of category data
@@ -68,7 +69,13 @@ const Customers = () => {
     const getRoles = async () => {
         try {
             const response = await axiosPrivate.get(rolesUrl);
-            setRolesData(response.data);
+            var roleData = response.data;
+
+            response.data.map(
+                (item: any, index: number) => (roleData[index].checked = false)
+            );
+
+            setRolesData(roleData);
         } catch (error) {
             console.log(error);
         }
@@ -88,10 +95,11 @@ const Customers = () => {
 
     // method to create new category
     const handleCreate = (formData: {
-        Id: number;
+        Id: string;
         Email: string;
         FirstName: string;
         LastName: string;
+        Roles: string[];
     }) => {
         axios
             .post(accountUrl + "register", formData)
@@ -108,7 +116,7 @@ const Customers = () => {
     };
 
     // Show data of categories in the form field
-    const handleEdit = (Id: number) => {
+    const handleEdit = (Id: string) => {
         setModalTitle("Edit Customer");
         handleModalShow();
 
@@ -117,11 +125,29 @@ const Customers = () => {
         axios
             .get(accountUrl + Id)
             .then((result) => {
+                // information of the clicked user
+                const userData = result.data.user;
+                // array of user roles names
+                const roleArr = result.data.role;
+
+                // Update roles data checkbox depending on the clicked user
+                setRolesData((prevState) => {
+                    const newState = Array.from(prevState);
+                    prevState.map((item, index) => {
+                        // if role is ann role array of user then set check box to checked(true) else checked(false)
+                        newState[index]["checked"] =
+                            roleArr.indexOf(item.name) > -1 ? true : false;
+                    });
+                    return newState;
+                });
+
+                // set form data to the selected user
                 setformData({
                     Id: Id,
-                    Email: result.data.email,
-                    FirstName: result.data.firstName,
-                    LastName: result.data.firstName,
+                    Email: userData.email,
+                    FirstName: userData.firstName,
+                    LastName: userData.lastName,
+                    Roles: roleArr,
                 });
 
                 return true;
@@ -134,11 +160,19 @@ const Customers = () => {
 
     // method to update a category
     const handleUpdate = (formData: {
-        Id: number;
+        Id: string;
         Email: string;
         FirstName: string;
         LastName: string;
+        Roles: string[];
     }) => {
+        var roleArr: any = [];
+        rolesData.map((item, index) => {
+            if (item.checked) {
+                roleArr.push(item.name);
+            }
+        });
+        formData.Roles = roleArr;
         console.log(formData);
         axios
             .put(accountUrl + Id, formData)
@@ -157,7 +191,7 @@ const Customers = () => {
     const handleSubmit = (e: { preventDefault: () => void; target: any }) => {
         e.preventDefault();
 
-        if (Id !== 0) {
+        if (Id !== "0") {
             // if id not zero update the existing record
             formData.Id = Id;
             handleUpdate(formData);
@@ -167,7 +201,7 @@ const Customers = () => {
         }
     };
 
-    const handeDelete = (Id: number) => {
+    const handeDelete = (Id: string) => {
         axios
             .delete(accountUrl + Id)
             .then(function (response) {
@@ -184,10 +218,32 @@ const Customers = () => {
     // Clear all form fields
     const resetForm = () => {
         setformData({
-            Id: 0,
+            Id: "0",
             Email: "",
             FirstName: "",
             LastName: "",
+            Roles: [],
+        });
+
+        setRolesData((prevState) => {
+            const newState = Array.from(prevState);
+            prevState.map((item, index) => {
+                // set role to checked(false)
+                newState[index]["checked"] = false;
+            });
+            return newState;
+        });
+    };
+
+    const updateCheckStatus = (e: any) => {
+        // index of the clicked role
+        var targetCb = e.target.id.split("_")[1];
+
+        // update the state of the role checkbox depending whether it is checked or not
+        setRolesData((prevState) => {
+            const newState = Array.from(prevState);
+            newState[targetCb]["checked"] = e.target.checked;
+            return newState;
         });
     };
 
@@ -201,7 +257,7 @@ const Customers = () => {
                             type="button"
                             className="btn btn-success"
                             onClick={() => {
-                                setId(0);
+                                setId("0");
                                 setModalTitle("Add Customer");
                                 resetForm();
                                 handleModalShow();
@@ -335,15 +391,18 @@ const Customers = () => {
                                 {rolesData.map((item, index) => (
                                     <div className="form-check" key={index}>
                                         <input
+                                            key={index}
                                             className="form-check-input"
                                             type="checkbox"
-                                            id={"check" + index}
+                                            id={"check_" + index}
                                             value={item.name}
                                             name="roles[]"
+                                            checked={item.checked}
+                                            onChange={updateCheckStatus}
                                         />
                                         <label
                                             className="form-check-label"
-                                            htmlFor={"check" + index}
+                                            htmlFor={"check_" + index}
                                         >
                                             {item.name}
                                         </label>
